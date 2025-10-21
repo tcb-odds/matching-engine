@@ -9,7 +9,8 @@ import (
 	"sync"
 
 	"github.com/Pantelwar/binarytree"
-	"github.com/Pantelwar/matching-engine/util"
+
+	"github.com/Pantelwar/matching-engine/internal/app/util"
 )
 
 // OrderBook type

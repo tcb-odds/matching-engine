@@ -4,13 +4,14 @@
 package engine
 
 import (
-	context "context"
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
-	math "math"
+	"context"
+	"fmt"
+	"math"
+
+	"github.com/golang/protobuf/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -50,8 +51,8 @@ func (Side) EnumDescriptor() ([]byte, []int) {
 }
 
 type Order struct {
-	Type                 Side     `protobuf:"varint,1,opt,name=Type,json=type,proto3,enum=Side" json:"Type,omitempty"`
-	ID                   string   `protobuf:"bytes,2,opt,name=ID,json=id,proto3" json:"ID,omitempty"`
+	Type Side   `protobuf:"varint,1,opt,name=Type,json=type,proto3,enum=Side" json:"Type,omitempty"`
+	ID   string `protobuf:"bytes,2,opt,name=ID,json=id,proto3" json:"ID,omitempty"`
 	Amount               string   `protobuf:"bytes,3,opt,name=Amount,json=amount,proto3" json:"Amount,omitempty"`
 	Price                string   `protobuf:"bytes,4,opt,name=Price,json=price,proto3" json:"Price,omitempty"`
 	Pair                 string   `protobuf:"bytes,5,opt,name=Pair,json=pair,proto3" json:"Pair,omitempty"`

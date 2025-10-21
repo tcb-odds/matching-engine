@@ -5,8 +5,8 @@ import (
 	"net"
 	"os"
 
-	engineGrpc "github.com/Pantelwar/matching-engine/engineGrpc"
-	"github.com/Pantelwar/matching-engine/server"
+	engineGrpc "github.com/Pantelwar/matching-engine/internal/app/engineGrpc"
+	"github.com/Pantelwar/matching-engine/internal/app/server"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"

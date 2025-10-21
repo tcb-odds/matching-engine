@@ -1,7 +1,7 @@
 package engine
 
 import (
-	"github.com/Pantelwar/matching-engine/util"
+	"github.com/Pantelwar/matching-engine/internal/app/util"
 )
 
 // OrderNode ...

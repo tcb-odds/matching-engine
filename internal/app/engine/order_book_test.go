@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"github.com/Pantelwar/binarytree"
-	"github.com/Pantelwar/matching-engine/util"
+
+	"github.com/Pantelwar/matching-engine/internal/app/util"
 )
 
 func TestNewOrderBook(t *testing.T) {

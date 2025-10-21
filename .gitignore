@@ -1,19 +1,83 @@
-# Binaries for programs and plugins
+# =================================
+# Combined .gitignore
+# =================================
+
+# Environment files
+.env
+.env.*
+.env.*.local
+*.env
+!.env.example
+
+# Operating System
+.DS_Store
+*.DS_Store
+
+# IDEs and Editors
+*.idea/
+.vscode/
+*.suo
+*.njsproj
+*.sln
+*.sw?
+*.ntvs*
+!.vscode/extensions.json
+
+# Build outputs and distributions
+build/
+dist/
+dist-ssr/
+coverage/
+coverage.html
+coverage.out
+dist/linux/*
+dist/windows/*
+
+# Node.js
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Go
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-
-# Test binary, built with `go test -c`
 *.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+go.work
+go.work.sum
+vendor/
+.golangci.bck.yaml
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Logs
+*.log
+logs/
 
-test*
+# Databases
+*.db
+devices.db
+pgdata/
+redisdata/
 
-main/
+# Docker and Local Development
+!Dockerfile.local
+
+# Application specific
+_state
+data/
+indices/
+nodes/
+snapshot_cache/
+.PHPStorm50/
+
+# Test and Development
+/build
+/cypress/screenshots/
+/cypress/videos/
+/redisdata
+/vendor
