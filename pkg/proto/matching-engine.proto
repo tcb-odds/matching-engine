@@ -1,5 +1,8 @@
 syntax = "proto3";
 
+package tcb.matching_engine;
+option go_package = "pkg/proto";
+
 service Engine {
     rpc Process(Order) returns (OutputOrders); 
     rpc ProcessMarket(Order) returns (OutputOrders); 

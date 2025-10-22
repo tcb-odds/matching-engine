@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	engine2 "github.com/Pantelwar/matching-engine/internal/app/engine"
-	engine3 "github.com/Pantelwar/matching-engine/internal/app/engineGrpc"
-	"github.com/Pantelwar/matching-engine/internal/app/util"
+	engine2 "github.com/tcb-odds/matching-engine/internal/app/engine"
+	"github.com/tcb-odds/matching-engine/internal/app/util"
+	engine3 "github.com/tcb-odds/matching-engine/pkg/proto"
 )
 
 // Engine ...

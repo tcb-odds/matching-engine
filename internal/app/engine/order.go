@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/Pantelwar/matching-engine/internal/app/util"
+	"github.com/tcb-odds/matching-engine/internal/app/util"
 )
 
 // Order describes the struct of the order
