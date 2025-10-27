@@ -5,8 +5,8 @@ import (
 	"net"
 	"os"
 
-	engineGrpc "github.com/Pantelwar/matching-engine/internal/app/engineGrpc"
-	"github.com/Pantelwar/matching-engine/internal/app/server"
+	"github.com/tcb-odds/matching-engine/internal/app/server"
+	engineGrpc "github.com/tcb-odds/matching-engine/pkg/proto"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -17,8 +17,11 @@ const (
 )
 
 func main() {
+	// Create subscription manager
+	subscriptionManager := server.NewSubscriptionManager()
+
 	gs := grpc.NewServer()
-	cs := server.NewEngine()
+	cs := server.NewEngine(subscriptionManager)
 	engineGrpc.RegisterEngineServer(gs, cs)
 
 	reflection.Register(gs)
@@ -30,5 +33,6 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("grpc server listening to %s\n", port)
+	fmt.Printf("Subscription manager initialized\n")
 	gs.Serve(l)
 }

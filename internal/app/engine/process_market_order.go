@@ -139,8 +139,10 @@ func (ob *OrderBook) processLimitMarket(order *Order, tree *binarytree.BinaryTre
 				// amount = math.Floor(amount*100000000) / 100000000
 				ele.Amount = amount
 
-				partialOrder = NewOrder(ele.ID, ele.Type, ele.Amount, ele.Price)
-				ordersProcessed = append(ordersProcessed, NewOrder(order.ID, order.Type, orderOriginalAmount, decimalZero))
+				// Old order partially filled
+				partialOrder = NewFilledOrder(ele.ID, ele.Type, ele.Amount, ele.Price, order.Amount)
+				// Market order fully filled
+				ordersProcessed = append(ordersProcessed, NewFilledOrder(order.ID, order.Type, orderOriginalAmount, decimalZero, orderOriginalAmount))
 
 				maxNode.SetData(nodeData)
 
@@ -151,8 +153,9 @@ func (ob *OrderBook) processLimitMarket(order *Order, tree *binarytree.BinaryTre
 			if ele.Amount.Cmp(order.Amount) == 0 {
 				nodeData.updateVolume(order.Amount.Neg())
 
-				ordersProcessed = append(ordersProcessed, NewOrder(ele.ID, ele.Type, ele.Amount, ele.Price))
-				ordersProcessed = append(ordersProcessed, NewOrder(order.ID, order.Type, orderOriginalAmount, decimalZero))
+				// Both orders fully filled
+				ordersProcessed = append(ordersProcessed, NewFilledOrder(ele.ID, ele.Type, ele.Amount, ele.Price, ele.Amount))
+				ordersProcessed = append(ordersProcessed, NewFilledOrder(order.ID, order.Type, orderOriginalAmount, decimalZero, orderOriginalAmount))
 
 				countMatch++
 				// trades = append(trades, Trade{BuyOrderID: ele.ID, SellOrderID: order.ID, Amount: order.Amount, Price: ele.Price})
@@ -169,7 +172,8 @@ func (ob *OrderBook) processLimitMarket(order *Order, tree *binarytree.BinaryTre
 			} else {
 				countMatch++
 
-				ordersProcessed = append(ordersProcessed, NewOrder(ele.ID, ele.Type, ele.Amount, ele.Price))
+				// Old order fully filled
+				ordersProcessed = append(ordersProcessed, NewFilledOrder(ele.ID, ele.Type, ele.Amount, ele.Price, ele.Amount))
 
 				nodeData.updateVolume(ele.Amount.Neg())
 

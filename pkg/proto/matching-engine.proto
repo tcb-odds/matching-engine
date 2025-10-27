@@ -8,6 +8,7 @@ service Engine {
     rpc ProcessMarket(Order) returns (OutputOrders); 
     rpc Cancel(Order) returns (Order);
     rpc FetchBook(BookInput) returns (BookOutput);
+    rpc SubscribeToOrderUpdates(SubscribeRequest) returns (stream OrderUpdateEvent);
 }
 
 message Order {
@@ -16,6 +17,21 @@ message Order {
     string Amount = 3 [json_name = "amount"];
     string Price = 4 [json_name = "price"];
     string Pair = 5 [json_name = "pair"];
+    string FilledAmount = 6 [json_name = "filled_amount"];
+}
+
+message SubscribeRequest {
+    // Empty - subscribe to all updates
+}
+
+message OrderUpdateEvent {
+    string event_type = 1;
+    int64 timestamp = 2;
+    string pair = 3;
+    Order order = 4;
+    Order matched_with = 5;
+    string trade_amount = 6;
+    string execution_price = 7;
 }
 
 message OutputOrders {

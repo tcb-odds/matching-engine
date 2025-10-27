@@ -1,27 +1,24 @@
-FROM golang:alpine as builder
+FROM golang:1.25-alpine AS builder
 
-ENV GO111MODULE=on \
-    CGO_ENABLED=0 \
-    GOOS=linux \
-    GOARCH=amd64
+RUN apk update && apk add --no-cache git mercurial openssh make
 
-WORKDIR /dist
+ARG REPOSITORY_PRIVATE_KEY
+ARG SSH_PRIVATE_KEY
 
-# Copy and download dependency using go mod
-COPY go.mod .
-COPY go.sum .
-RUN go mod download
+ARG GOOS=linux
+ENV GO111MODULE=on
+ENV GOPRIVATE=tcb-odds/matching-engine
 
-# Copy the code into the container
+WORKDIR $GOPATH/src/tcb-odds/matching-engine
+
 COPY . .
 
-# Build the application
-RUN go build -o main .
+RUN make build
 
-FROM gcr.io/distroless/static-debian10
+FROM alpine:3.11
 
-COPY --from=builder /dist/main .
+WORKDIR /app
 
-EXPOSE 9099
-# Command to run when starting the container
-CMD ["./main"]
+COPY --from=builder /go/src/tcb-odds/matching-engine/build/app /app/app
+
+ENTRYPOINT ["/app/app"]

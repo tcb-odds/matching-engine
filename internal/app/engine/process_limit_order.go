@@ -160,8 +160,10 @@ func (ob *OrderBook) processLimit(order, partialOrder *Order, tree *binarytree.B
 				// amount = math.Floor(amount*100000000) / 100000000
 				ele.Amount = amount
 
-				partialOrder = NewOrder(ele.ID, ele.Type, ele.Amount, ele.Price)
-				ordersProcessed = append(ordersProcessed, NewOrder(order.ID, order.Type, orderOriginalAmount, order.Price))
+				// partialOrder: old order partially filled (FilledAmount = what was executed)
+				partialOrder = NewFilledOrder(ele.ID, ele.Type, ele.Amount, ele.Price, order.Amount)
+				// ordersProcessed: incoming order fully filled
+				ordersProcessed = append(ordersProcessed, NewFilledOrder(order.ID, order.Type, orderOriginalAmount, order.Price, orderOriginalAmount))
 
 				maxNode.SetData(nodeData)
 
@@ -171,8 +173,9 @@ func (ob *OrderBook) processLimit(order, partialOrder *Order, tree *binarytree.B
 			} else if ele.Amount.Cmp(order.Amount) == 0 {
 				nodeData.updateVolume(order.Amount.Neg())
 
-				ordersProcessed = append(ordersProcessed, NewOrder(ele.ID, ele.Type, ele.Amount, ele.Price))
-				ordersProcessed = append(ordersProcessed, NewOrder(order.ID, order.Type, orderOriginalAmount, order.Price))
+				// Both orders fully filled
+				ordersProcessed = append(ordersProcessed, NewFilledOrder(ele.ID, ele.Type, ele.Amount, ele.Price, ele.Amount))
+				ordersProcessed = append(ordersProcessed, NewFilledOrder(order.ID, order.Type, orderOriginalAmount, order.Price, orderOriginalAmount))
 				partialOrder = nil
 				countMatch++
 				// trades = append(trades, Trade{BuyOrderID: ele.ID, SellOrderID: order.ID, Amount: order.Amount, Price: ele.Price})
@@ -191,9 +194,12 @@ func (ob *OrderBook) processLimit(order, partialOrder *Order, tree *binarytree.B
 
 				amount := order.Amount.Sub(ele.Amount)
 
-				partialOrder = NewOrder(order.ID, order.Type, amount, order.Price)
+				// partialOrder: incoming order partially filled
+				filledSoFar := orderOriginalAmount.Sub(amount)
+				partialOrder = NewFilledOrder(order.ID, order.Type, amount, order.Price, filledSoFar)
 
-				ordersProcessed = append(ordersProcessed, NewOrder(ele.ID, ele.Type, ele.Amount, ele.Price))
+				// Old order fully filled
+				ordersProcessed = append(ordersProcessed, NewFilledOrder(ele.ID, ele.Type, ele.Amount, ele.Price, ele.Amount))
 
 				nodeData.updateVolume(ele.Amount.Neg())
 

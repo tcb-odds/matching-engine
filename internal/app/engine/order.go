@@ -11,10 +11,11 @@ import (
 
 // Order describes the struct of the order
 type Order struct {
-	Amount *util.StandardBigDecimal `json:"amount"` // validate:"gt=0"`
-	Price  *util.StandardBigDecimal `json:"price"`  // validate:"gt=0"`
-	ID     string                   `json:"id"`     // validate:"required"`
-	Type   Side                     `json:"type"`   //  validate:"side_validate"`
+	Amount       *util.StandardBigDecimal `json:"amount"`        // validate:"gt=0"`
+	Price        *util.StandardBigDecimal `json:"price"`         // validate:"gt=0"`
+	ID           string                   `json:"id"`            // validate:"required"`
+	Type         Side                     `json:"type"`          //  validate:"side_validate"`
+	FilledAmount *util.StandardBigDecimal `json:"filled_amount"` // amount that has been filled
 }
 
 // func sideValidation(fl validator.FieldLevel) bool {
@@ -26,7 +27,14 @@ type Order struct {
 
 // NewOrder returns *Order
 func NewOrder(id string, orderType Side, amount, price *util.StandardBigDecimal) *Order {
-	o := &Order{ID: id, Type: orderType, Amount: amount, Price: price}
+	zero, _ := util.NewDecimalFromString("0.0")
+	o := &Order{ID: id, Type: orderType, Amount: amount, Price: price, FilledAmount: zero}
+	return o
+}
+
+// NewFilledOrder returns *Order with specified filled amount
+func NewFilledOrder(id string, orderType Side, amount, price, filledAmount *util.StandardBigDecimal) *Order {
+	o := &Order{ID: id, Type: orderType, Amount: amount, Price: price, FilledAmount: filledAmount}
 	return o
 }
 
@@ -56,10 +64,11 @@ func (order *Order) String() string {
 // UnmarshalJSON implements json.Unmarshaler interface
 func (order *Order) UnmarshalJSON(data []byte) error {
 	obj := struct {
-		Type   Side   `json:"type"`   // validate:"side_validate"`
-		ID     string `json:"id"`     // validate:"required"`
-		Amount string `json:"amount"` // validate:"required"`
-		Price  string `json:"price"`  // validate:"required"`
+		Type         Side   `json:"type"`          // validate:"side_validate"`
+		ID           string `json:"id"`            // validate:"required"`
+		Amount       string `json:"amount"`        // validate:"required"`
+		Price        string `json:"price"`         // validate:"required"`
+		FilledAmount string `json:"filled_amount"` // optional
 	}{}
 
 	if err := json.Unmarshal(data, &obj); err != nil {
@@ -88,6 +97,16 @@ func (order *Order) UnmarshalJSON(data []byte) error {
 	order.Type = obj.Type
 	order.ID = obj.ID
 
+	// Parse FilledAmount if provided, otherwise default to 0
+	if obj.FilledAmount != "" {
+		order.FilledAmount, err = util.NewDecimalFromString(obj.FilledAmount)
+		if err != nil {
+			return errors.New("invalid order filled amount")
+		}
+	} else {
+		order.FilledAmount, _ = util.NewDecimalFromString("0.0")
+	}
+
 	price := order.Price.Float64()
 	if price <= 0 {
 		return errors.New("Order price should be greater than zero")
@@ -103,15 +122,17 @@ func (order *Order) UnmarshalJSON(data []byte) error {
 func (order *Order) MarshalJSON() ([]byte, error) {
 	return json.Marshal(
 		&struct {
-			Type   string `json:"type"`
-			ID     string `json:"id"`
-			Amount string `json:"amount"`
-			Price  string `json:"price"`
+			Type         string `json:"type"`
+			ID           string `json:"id"`
+			Amount       string `json:"amount"`
+			Price        string `json:"price"`
+			FilledAmount string `json:"filled_amount"`
 		}{
-			Type:   order.Type.String(),
-			ID:     order.ID,
-			Amount: order.Amount.String(),
-			Price:  order.Price.String(),
+			Type:         order.Type.String(),
+			ID:           order.ID,
+			Amount:       order.Amount.String(),
+			Price:        order.Price.String(),
+			FilledAmount: order.FilledAmount.String(),
 		},
 	)
 }

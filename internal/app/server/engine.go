@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	engine2 "github.com/tcb-odds/matching-engine/internal/app/engine"
 	"github.com/tcb-odds/matching-engine/internal/app/util"
@@ -13,12 +14,29 @@ import (
 
 // Engine ...
 type Engine struct {
-	book map[string]*engine2.OrderBook
+	engine3.UnimplementedEngineServer
+	book                map[string]*engine2.OrderBook
+	subscriptionManager *SubscriptionManager
 }
 
 // NewEngine returns Engine object
-func NewEngine() *Engine {
-	return &Engine{book: map[string]*engine2.OrderBook{}}
+func NewEngine(subscriptionManager *SubscriptionManager) *Engine {
+	return &Engine{
+		book:                map[string]*engine2.OrderBook{},
+		subscriptionManager: subscriptionManager,
+	}
+}
+
+// convertOrderToProto converts internal Order to proto Order
+func convertOrderToProto(order *engine2.Order, pair string) *engine3.Order {
+	return &engine3.Order{
+		ID:           order.ID,
+		Type:         engine3.Side(engine3.Side_value[order.Type.String()]),
+		Amount:       order.Amount.String(),
+		Price:        order.Price.String(),
+		Pair:         pair,
+		FilledAmount: order.FilledAmount.String(),
+	}
 }
 
 // Process implements EngineServer interface
@@ -54,6 +72,40 @@ func (e *Engine) Process(ctx context.Context, req *engine3.Order) (*engine3.Outp
 	}
 
 	ordersProcessed, partialOrder := pairBook.Process(order)
+
+	// Notify subscribers about matched orders
+	if len(ordersProcessed) > 0 {
+		for i := 0; i < len(ordersProcessed); i++ {
+			processedOrder := ordersProcessed[i]
+
+			event := &engine3.OrderUpdateEvent{
+				EventType:      "matched",
+				Timestamp:      time.Now().Unix(),
+				Pair:           req.GetPair(),
+				Order:          convertOrderToProto(processedOrder, req.GetPair()),
+				ExecutionPrice: processedOrder.Price.String(),
+			}
+
+			// If there's a paired order for matched event
+			if i+1 < len(ordersProcessed) && ordersProcessed[i].ID != ordersProcessed[i+1].ID {
+				event.MatchedWith = convertOrderToProto(ordersProcessed[i+1], req.GetPair())
+				event.TradeAmount = processedOrder.Amount.String()
+			}
+
+			e.subscriptionManager.Broadcast(event)
+		}
+	}
+
+	// Notify about partially filled order
+	if partialOrder != nil {
+		event := &engine3.OrderUpdateEvent{
+			EventType: "partially_filled",
+			Timestamp: time.Now().Unix(),
+			Pair:      req.GetPair(),
+			Order:     convertOrderToProto(partialOrder, req.GetPair()),
+		}
+		e.subscriptionManager.Broadcast(event)
+	}
 
 	ordersProcessedString, err := json.Marshal(ordersProcessed)
 
@@ -110,6 +162,15 @@ func (e *Engine) Cancel(ctx context.Context, req *engine3.Order) (*engine3.Order
 		return nil, errors.New("NoOrderPresent")
 	}
 
+	// Notify subscribers about cancelled order
+	event := &engine3.OrderUpdateEvent{
+		EventType: "cancelled",
+		Timestamp: time.Now().Unix(),
+		Pair:      req.GetPair(),
+		Order:     convertOrderToProto(order, req.GetPair()),
+	}
+	e.subscriptionManager.Broadcast(event)
+
 	orderEngine := &engine3.Order{}
 
 	orderEngine.ID = order.ID
@@ -153,6 +214,40 @@ func (e *Engine) ProcessMarket(ctx context.Context, req *engine3.Order) (*engine
 	}
 
 	ordersProcessed, partialOrder := pairBook.ProcessMarket(order)
+
+	// Notify subscribers about matched orders (market orders)
+	if len(ordersProcessed) > 0 {
+		for i := 0; i < len(ordersProcessed); i++ {
+			processedOrder := ordersProcessed[i]
+
+			event := &engine3.OrderUpdateEvent{
+				EventType:      "matched",
+				Timestamp:      time.Now().Unix(),
+				Pair:           req.GetPair(),
+				Order:          convertOrderToProto(processedOrder, req.GetPair()),
+				ExecutionPrice: processedOrder.Price.String(),
+			}
+
+			// If there's a paired order for matched event
+			if i+1 < len(ordersProcessed) && ordersProcessed[i].ID != ordersProcessed[i+1].ID {
+				event.MatchedWith = convertOrderToProto(ordersProcessed[i+1], req.GetPair())
+				event.TradeAmount = processedOrder.Amount.String()
+			}
+
+			e.subscriptionManager.Broadcast(event)
+		}
+	}
+
+	// Notify about partially filled order
+	if partialOrder != nil {
+		event := &engine3.OrderUpdateEvent{
+			EventType: "partially_filled",
+			Timestamp: time.Now().Unix(),
+			Pair:      req.GetPair(),
+			Order:     convertOrderToProto(partialOrder, req.GetPair()),
+		}
+		e.subscriptionManager.Broadcast(event)
+	}
 
 	ordersProcessedString, err := json.Marshal(ordersProcessed)
 
@@ -228,4 +323,31 @@ func (e *Engine) FetchBook(ctx context.Context, req *engine3.BookInput) (*engine
 		result.Sells = append(result.Sells, arr)
 	}
 	return result, nil
+}
+
+// SubscribeToOrderUpdates implements EngineServer interface for streaming order updates
+func (e *Engine) SubscribeToOrderUpdates(req *engine3.SubscribeRequest, stream engine3.Engine_SubscribeToOrderUpdatesServer) error {
+	// Create subscriber
+	subscriber := e.subscriptionManager.Subscribe(stream.Context())
+	defer e.subscriptionManager.Unsubscribe(subscriber.ID)
+
+	fmt.Printf("New subscriber connected: %s (total: %d)\n", subscriber.ID, e.subscriptionManager.Count())
+
+	// Listen to channel and send updates
+	for {
+		select {
+		case event, ok := <-subscriber.Channel:
+			if !ok {
+				fmt.Printf("Subscriber channel closed: %s\n", subscriber.ID)
+				return nil
+			}
+			if err := stream.Send(event); err != nil {
+				fmt.Printf("Error sending to subscriber %s: %v\n", subscriber.ID, err)
+				return err
+			}
+		case <-stream.Context().Done():
+			fmt.Printf("Subscriber disconnected: %s (total: %d)\n", subscriber.ID, e.subscriptionManager.Count()-1)
+			return nil
+		}
+	}
 }

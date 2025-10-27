@@ -1,4 +1,4 @@
-BUILD=./build/matching-engine
+BUILD=./build/app
 GOOS?=linux
 DOCKER_TAG?=matching-engine
 

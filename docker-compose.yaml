@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # Matching Engine Server
+  matching-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: matching-engine
+    ports:
+      - "9000:9000"
+    networks:
+      - matching-network
+    restart: unless-stopped
+    environment:
+      - PORT=9000
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:9000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Example Subscriber Client (для тестирования)
+  subscriber-client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: subscriber-client
+    depends_on:
+      matching-engine:
+        condition: service_started
+    networks:
+      - matching-network
+    environment:
+      - MATCHING_ENGINE_HOST=matching-engine:9000
+    command: ["/app/subscriber_client"]
+    restart: on-failure
+
+  # Опциональный grpcui для тестирования через веб-интерфейс
+  grpcui:
+    image: fullstorydev/grpcui:latest
+    container_name: grpcui
+    depends_on:
+      - matching-engine
+    ports:
+      - "8080:8080"
+    networks:
+      - matching-network
+    command: ["-plaintext", "-port", "8080", "matching-engine:9000"]
+    restart: unless-stopped
+
+networks:
+  matching-network:
+    driver: bridge
+    name: matching-network
+
+# Для production с persistent state (если будет добавлено)
+# volumes:
+#   matching-data:
+#     driver: local
+
