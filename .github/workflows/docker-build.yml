@@ -8,6 +8,9 @@ on:
   push:
     branches:
       - 'master'
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/matching-engine
+
 jobs:
   docker:
     name: "Docker Build"
@@ -36,3 +39,26 @@ jobs:
           tags: ghcr.io/tcb-odds/matching-engine:${{env.SHORT_SHA}}
           build-args: |
             "SSH_PRIVATE_KEY=${{ secrets.SSH_PRIVATE_KEY }}"
+
+      - name: Deploy to Ubuntu server (SSH)
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          SHORT_SHA: ${{ env.SHORT_SHA }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/tcb/server
+            cp docker-compose.yaml docker-compose.yaml.bak.$(date +%s)
+
+            SERVICE="matching-engine"
+            yq eval -i ".services[\"$SERVICE\"].image = \"${{env.IMAGE_NAME}}:${{env.SHORT_SHA}}\"" docker-compose.yaml          
+
+            echo "=== Updated docker‑compose.yaml ==="
+            grep -A2 "image:" -n docker-compose.yaml | grep "${SERVICE}" -A1
+
+            docker compose pull ${SERVICE}
+
+            docker compose up -d --no-deps ${SERVICE}

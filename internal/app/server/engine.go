@@ -279,7 +279,8 @@ func (e *Engine) FetchBook(ctx context.Context, req *engine3.BookInput) (*engine
 	if val, ok := e.book[req.GetPair()]; ok {
 		pairBook = val
 	} else {
-		return nil, errors.New("Invalid pair")
+		pairBook = engine2.NewOrderBook()
+		e.book[req.GetPair()] = pairBook
 	}
 
 	fmt.Println(pairBook)
