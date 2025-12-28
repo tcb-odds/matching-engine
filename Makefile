@@ -1,5 +1,5 @@
 BUILD=./build/app
-GOOS?=linux
+#GOOS?=linux
 DOCKER_TAG?=matching-engine
 
 build: vendor clean
@@ -18,11 +18,18 @@ network:
 start:
 	sudo docker-compose up -d
 
+start-win:
+	./build/app
+
+dev-api:
+	go run ./cmd/main.go development
+
 stop:
 	sudo docker-compose down
 
 rebuild: build
 	sudo docker-compose up -d --force-recreate --build
+
 tidy:
 	go mod tidy
 
@@ -31,6 +38,9 @@ vendor: tidy
 
 lint:
 	golangci-lint run
+
+format:
+	go fmt ./...
 
 coverage:
 	go test -cover -coverprofile=coverage.out ./... -p 1 && go tool cover -html=coverage.out -o coverage.html
