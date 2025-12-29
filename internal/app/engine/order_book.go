@@ -341,3 +341,18 @@ func (ob *OrderBook) removeOrder(order *Order) error {
 	}
 	return nil
 }
+
+// Clear removes all orders from the order book
+func (ob *OrderBook) Clear() {
+	ob.mutex.Lock()
+	defer ob.mutex.Unlock()
+
+	bTree := binarytree.NewBinaryTree()
+	sTree := binarytree.NewBinaryTree()
+	bTree.ToggleSplay(true)
+	sTree.ToggleSplay(true)
+
+	ob.BuyTree = bTree
+	ob.SellTree = sTree
+	ob.orders = make(map[string]*OrderNode)
+}

@@ -1,6 +1,7 @@
 package diagnostic
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -14,6 +15,7 @@ var serviceStartTime = time.Now()
 // StatsProvider interface for getting engine statistics
 type StatsProvider interface {
 	GetStats() interface{}
+	EraseOrders(pair string) error
 }
 
 var statsProvider StatsProvider
@@ -42,4 +44,35 @@ func GetStats(c *gin.Context) {
 
 	stats := statsProvider.GetStats()
 	c.JSON(http.StatusOK, stats)
+}
+
+func EraseOrders(c *gin.Context) {
+	if statsProvider == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Stats provider not initialized",
+		})
+		return
+	}
+
+	pair := c.Query("pair")
+
+	err := statsProvider.EraseOrders(pair)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	message := "All orders cleared successfully"
+	if pair != "" {
+		message = "Orders cleared for pair: " + pair
+	}
+
+	fmt.Printf("EraseOrders: %s\n", message)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": message,
+		"pair":    pair,
+	})
 }

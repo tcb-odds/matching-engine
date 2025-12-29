@@ -34,7 +34,6 @@ func (e *Engine) GetStats() interface{} {
 		buyCount := 0
 		sellCount := 0
 
-		// Count buy orders
 		if orderBook.BuyTree.Root != nil {
 			orderBook.BuyTree.Root.InOrderTraverse(func(i float64) {
 				node := orderBook.BuyTree.Root.SearchSubTree(i)
@@ -45,7 +44,6 @@ func (e *Engine) GetStats() interface{} {
 			})
 		}
 
-		// Count sell orders
 		if orderBook.SellTree.Root != nil {
 			orderBook.SellTree.Root.InOrderTraverse(func(i float64) {
 				node := orderBook.SellTree.Root.SearchSubTree(i)
@@ -69,4 +67,21 @@ func (e *Engine) GetStats() interface{} {
 	}
 
 	return stats
+}
+
+// EraseOrders clears all orders from a specific pair or all pairs
+func (e *Engine) EraseOrders(pair string) error {
+	if pair != "" {
+		if orderBook, ok := e.book[pair]; ok {
+			orderBook.Clear()
+			delete(e.book, pair)
+			return nil
+		}
+		return nil
+	}
+
+	for pairName := range e.book {
+		delete(e.book, pairName)
+	}
+	return nil
 }
