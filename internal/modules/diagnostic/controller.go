@@ -28,6 +28,7 @@ func SetStatsProvider(provider StatsProvider) {
 func GetDiagnostic(c *gin.Context) {
 	elapsedTime := time.Since(serviceStartTime)
 	c.JSON(http.StatusOK, gin.H{
+		"name":      config.AppName,
 		"version":   config.AppVersion,
 		"startTime": serviceStartTime.Format(time.RFC3339),
 		"uptime":    utils.FormatDuration(elapsedTime),
