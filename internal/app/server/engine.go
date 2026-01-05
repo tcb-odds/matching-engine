@@ -80,6 +80,8 @@ func (e *Engine) Process(ctx context.Context, req *engine3.Order) (*engine3.Outp
 
 	// Notify subscribers about matched orders
 	if len(ordersProcessed) > 0 {
+		incomingOrderID := req.GetID()
+
 		for i := 0; i < len(ordersProcessed); i++ {
 			processedOrder := ordersProcessed[i]
 
@@ -91,10 +93,29 @@ func (e *Engine) Process(ctx context.Context, req *engine3.Order) (*engine3.Outp
 				ExecutionPrice: processedOrder.Price.String(),
 			}
 
-			// If there's a paired order for matched event
-			if i+1 < len(ordersProcessed) && ordersProcessed[i].ID != ordersProcessed[i+1].ID {
-				event.MatchedWith = convertOrderToProto(ordersProcessed[i+1], req.GetPair())
-				event.TradeAmount = processedOrder.Amount.String()
+			// Find the counterparty order
+			// Orders are returned in pairs when both are fully filled: [bookOrder, incomingOrder]
+			// or individually when only one is filled
+			if processedOrder.ID == incomingOrderID {
+				// This is the incoming order - find its counterparty (the previous book order)
+				if i > 0 && ordersProcessed[i-1].ID != incomingOrderID {
+					event.MatchedWith = convertOrderToProto(ordersProcessed[i-1], req.GetPair())
+					event.TradeAmount = processedOrder.FilledAmount.String()
+				}
+			} else {
+				// This is a book order - its counterparty is the incoming order
+				if i+1 < len(ordersProcessed) && ordersProcessed[i+1].ID == incomingOrderID {
+					event.MatchedWith = convertOrderToProto(ordersProcessed[i+1], req.GetPair())
+					event.TradeAmount = processedOrder.FilledAmount.String()
+				} else {
+					// The incoming order is not in this batch (partial fill case)
+					// Create a minimal order representation for the matched_with field
+					event.MatchedWith = &engine3.Order{
+						ID:   incomingOrderID,
+						Type: engine3.Side(engine3.Side_value[order.Type.String()]),
+					}
+					event.TradeAmount = processedOrder.FilledAmount.String()
+				}
 			}
 
 			e.subscriptionManager.Broadcast(event)
@@ -222,6 +243,8 @@ func (e *Engine) ProcessMarket(ctx context.Context, req *engine3.Order) (*engine
 
 	// Notify subscribers about matched orders (market orders)
 	if len(ordersProcessed) > 0 {
+		incomingOrderID := req.GetID()
+
 		for i := 0; i < len(ordersProcessed); i++ {
 			processedOrder := ordersProcessed[i]
 
@@ -233,10 +256,29 @@ func (e *Engine) ProcessMarket(ctx context.Context, req *engine3.Order) (*engine
 				ExecutionPrice: processedOrder.Price.String(),
 			}
 
-			// If there's a paired order for matched event
-			if i+1 < len(ordersProcessed) && ordersProcessed[i].ID != ordersProcessed[i+1].ID {
-				event.MatchedWith = convertOrderToProto(ordersProcessed[i+1], req.GetPair())
-				event.TradeAmount = processedOrder.Amount.String()
+			// Find the counterparty order
+			// Orders are returned in pairs when both are fully filled: [bookOrder, incomingOrder]
+			// or individually when only one is filled
+			if processedOrder.ID == incomingOrderID {
+				// This is the incoming order - find its counterparty (the previous book order)
+				if i > 0 && ordersProcessed[i-1].ID != incomingOrderID {
+					event.MatchedWith = convertOrderToProto(ordersProcessed[i-1], req.GetPair())
+					event.TradeAmount = processedOrder.FilledAmount.String()
+				}
+			} else {
+				// This is a book order - its counterparty is the incoming order
+				if i+1 < len(ordersProcessed) && ordersProcessed[i+1].ID == incomingOrderID {
+					event.MatchedWith = convertOrderToProto(ordersProcessed[i+1], req.GetPair())
+					event.TradeAmount = processedOrder.FilledAmount.String()
+				} else {
+					// The incoming order is not in this batch (partial fill case)
+					// Create a minimal order representation for the matched_with field
+					event.MatchedWith = &engine3.Order{
+						ID:   incomingOrderID,
+						Type: engine3.Side(engine3.Side_value[order.Type.String()]),
+					}
+					event.TradeAmount = processedOrder.FilledAmount.String()
+				}
 			}
 
 			e.subscriptionManager.Broadcast(event)

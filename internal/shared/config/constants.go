@@ -2,5 +2,5 @@ package config
 
 const (
 	AppName    = "matching-engine"
-	AppVersion = "0.0.7"
+	AppVersion = "0.0.8"
 )
