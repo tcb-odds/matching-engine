@@ -14,8 +14,8 @@ func TestToJSON(t *testing.T) {
 		input  *Order
 		output string
 	}{
-		{NewOrder("b1", Buy, DecimalBig("5.0"), DecimalBig("7000.0")), `{"type":"buy","id":"b1","amount":"5.0","price":"7000.0"}`},
-		{NewOrder("s1", Sell, DecimalBig("5.0"), DecimalBig("7000.0")), `{"type":"sell","id":"s1","amount":"5.0","price":"7000.0"}`},
+		{NewOrder("b1", Buy, DecimalBig("5.0"), DecimalBig("7000.0")), `{"type":"buy","id":"b1","amount":"5","price":"7000","filled_amount":"0"}`},
+		{NewOrder("s1", Sell, DecimalBig("5.0"), DecimalBig("7000.0")), `{"type":"sell","id":"s1","amount":"5","price":"7000","filled_amount":"0"}`},
 	}
 
 	for _, tt := range tests {
@@ -42,7 +42,7 @@ func TestFromJSON(t *testing.T) {
 		{"{\"amount\":\"5.0\",\"price\":\"7000.0\",\"id\":\"b1\"}", "err", "Check for type key"},
 
 		{"{\"amount\":\"0.0\",\"price\":\"7000.0\",\"id\":\"b1\",\"type\":\"buy\"}", "err", "Check for valid amount"},
-		{"{\"amount\":\"5.0\",\"price\":\"0.0\",\"id\":\"b1\",\"type\":\"buy\"}", "err", "Check for valid price"},
+		{"{\"amount\":\"5.0\",\"price\":\"0.0\",\"id\":\"b1\",\"type\":\"buy\"}", "", "Price 0 is valid for market orders"},
 
 		{"{\"amount\":\"5.0\",\"price\":\"7000.0\",\"id\":\"b1\",\"type\":\"random\"}", "err", "Check for valid type"},
 		{"{\"amount\":\"random\",\"price\":\"0.0\",\"id\":\"b1\",\"type\":\"buy\"}", "err", "Check for valid amount"},

@@ -39,3 +39,4 @@ cmd/app/__debug_bin.exe*
 .DS_Store
 
 vendor
+coverage.html

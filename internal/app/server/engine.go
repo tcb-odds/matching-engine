@@ -53,9 +53,14 @@ func (e *Engine) Process(ctx context.Context, req *engine3.Order) (*engine3.Outp
 		return nil, err
 	}
 
-	if order.Amount.Cmp(bigZero) == 0 || order.Price.Cmp(bigZero) == 0 {
-		fmt.Println("Invalid JSON")
-		return nil, errors.New("Invalid JSON")
+	if order.Amount.Cmp(bigZero) <= 0 {
+		fmt.Println("Invalid order amount")
+		return nil, errors.New("Order amount should be greater than zero")
+	}
+
+	if order.Price.Cmp(bigZero) <= 0 {
+		fmt.Println("Invalid order price")
+		return nil, errors.New("Order price should be greater than zero")
 	}
 
 	if req.GetPair() == "" {

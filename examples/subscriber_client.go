@@ -68,7 +68,7 @@ func main() {
 	}()
 
 	// Simulate placing some orders to generate events
-	fmt.Println("\nPlacing test orders...\n")
+	fmt.Println("\nPlacing test orders...")
 
 	// Order 1: Buy limit order
 	time.Sleep(1 * time.Second)

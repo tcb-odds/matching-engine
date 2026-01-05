@@ -107,10 +107,6 @@ func (order *Order) UnmarshalJSON(data []byte) error {
 		order.FilledAmount, _ = util.NewDecimalFromString("0.0")
 	}
 
-	price := order.Price.Float64()
-	if price <= 0 {
-		return errors.New("Order price should be greater than zero")
-	}
 	amount := order.Amount.Float64()
 	if amount <= 0 {
 		return errors.New("Order amount should be greater than zero")

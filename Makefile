@@ -42,6 +42,9 @@ lint:
 format:
 	go fmt ./...
 
+test:
+	go test ./... -p 1
+
 coverage:
 	go test -cover -coverprofile=coverage.out ./... -p 1 && go tool cover -html=coverage.out -o coverage.html
 
