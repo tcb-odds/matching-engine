@@ -282,3 +282,153 @@ func TestProcess_MatchedWithOrderID(t *testing.T) {
 		t.Errorf("Event 2: MatchedWith should not be nil")
 	}
 }
+
+// TestProcess_PartialFill_MatchedWithOrderID tests that MatchedWith is populated
+// for partial fill scenarios (large sell order vs multiple small buy orders)
+func TestProcess_PartialFill_MatchedWithOrderID(t *testing.T) {
+	eng, collector := newTestEngine()
+	defer collector.Close()
+
+	pair := "BTC/USDT"
+	ctx := context.Background()
+
+	// Scenario: 3 small buy orders in book, 1 large sell order comes in
+	// Buy orders: 10 shares each at $0.50
+	// Sell order: 25 shares at $0.50 (matches all 3 buys, partially fills)
+
+	buyOrder1 := &engine3.Order{
+		ID:     "buyer-a",
+		Type:   engine3.Side_buy,
+		Amount: "10",
+		Price:  "0.50",
+		Pair:   pair,
+	}
+	buyOrder2 := &engine3.Order{
+		ID:     "buyer-b",
+		Type:   engine3.Side_buy,
+		Amount: "10",
+		Price:  "0.50",
+		Pair:   pair,
+	}
+	buyOrder3 := &engine3.Order{
+		ID:     "buyer-c",
+		Type:   engine3.Side_buy,
+		Amount: "10",
+		Price:  "0.50",
+		Pair:   pair,
+	}
+
+	// Add buy orders to the book
+	_, err := eng.Process(ctx, buyOrder1)
+	if err != nil {
+		t.Fatalf("Failed to process buy order 1: %v", err)
+	}
+	_, err = eng.Process(ctx, buyOrder2)
+	if err != nil {
+		t.Fatalf("Failed to process buy order 2: %v", err)
+	}
+	_, err = eng.Process(ctx, buyOrder3)
+	if err != nil {
+		t.Fatalf("Failed to process buy order 3: %v", err)
+	}
+
+	// Clear events from adding orders to the book
+	collector.ClearEvents()
+
+	// Now create a large sell order that will match all 3 buy orders
+	// but only partially fill (25 < 30)
+	sellOrder := &engine3.Order{
+		ID:     "seller-123",
+		Type:   engine3.Side_sell,
+		Amount: "25",
+		Price:  "0.50",
+		Pair:   pair,
+	}
+
+	_, err = eng.Process(ctx, sellOrder)
+	if err != nil {
+		t.Fatalf("Failed to process sell order: %v", err)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+
+	events := collector.GetEvents()
+
+	t.Logf("Total events received: %d", len(events))
+	for i, event := range events {
+		matchedWithID := ""
+		if event.MatchedWith != nil {
+			matchedWithID = event.MatchedWith.ID
+		}
+		t.Logf("Event %d: Type=%s, OrderID=%s, OrderType=%v, FilledAmount=%s, MatchedWith=%s, TradeAmount=%s",
+			i+1, event.EventType, event.Order.ID, event.Order.Type, event.Order.FilledAmount, matchedWithID, event.TradeAmount)
+	}
+
+	// We expect events for:
+	// 1. Buyer A fully filled (matched with seller)
+	// 2. Seller matched event (after matching buyer A)
+	// 3. Buyer B fully filled (matched with seller)
+	// 4. Seller matched event (after matching buyer B)
+	// 5. Buyer C partially filled (5 shares, matched with seller)
+	// 6. Seller fully filled (matched with buyer C) OR partially_filled event
+
+	// Find all matched events
+	matchedEvents := []*engine3.OrderUpdateEvent{}
+	partiallyFilledEvents := []*engine3.OrderUpdateEvent{}
+	for _, e := range events {
+		if e.EventType == "matched" {
+			matchedEvents = append(matchedEvents, e)
+		} else if e.EventType == "partially_filled" {
+			partiallyFilledEvents = append(partiallyFilledEvents, e)
+		}
+	}
+
+	t.Logf("Matched events: %d, Partially filled events: %d", len(matchedEvents), len(partiallyFilledEvents))
+
+	// Key assertions: ALL matched/partially_filled events should have MatchedWith populated
+	for i, event := range events {
+		if event.EventType == "matched" || event.EventType == "partially_filled" {
+			if event.MatchedWith == nil {
+				t.Errorf("Event %d (%s for order %s): MatchedWith should NOT be nil",
+					i+1, event.EventType, event.Order.ID)
+			} else {
+				t.Logf("Event %d (%s for order %s): MatchedWith=%s ✓",
+					i+1, event.EventType, event.Order.ID, event.MatchedWith.ID)
+			}
+		}
+	}
+
+	// Verify buyer events have seller as MatchedWith
+	for _, event := range matchedEvents {
+		if event.Order.Type == engine3.Side_buy {
+			if event.MatchedWith == nil {
+				t.Errorf("Buy order %s: MatchedWith should be seller-123, got nil", event.Order.ID)
+			} else if event.MatchedWith.ID != "seller-123" {
+				t.Errorf("Buy order %s: expected MatchedWith='seller-123', got '%s'",
+					event.Order.ID, event.MatchedWith.ID)
+			}
+		}
+	}
+
+	// Verify seller events have a buyer as MatchedWith
+	for _, event := range matchedEvents {
+		if event.Order.Type == engine3.Side_sell {
+			if event.MatchedWith == nil {
+				t.Errorf("Sell order %s: MatchedWith should not be nil", event.Order.ID)
+			} else {
+				validBuyers := map[string]bool{"buyer-a": true, "buyer-b": true, "buyer-c": true}
+				if !validBuyers[event.MatchedWith.ID] {
+					t.Errorf("Sell order %s: expected MatchedWith to be a buyer, got '%s'",
+						event.Order.ID, event.MatchedWith.ID)
+				}
+			}
+		}
+	}
+
+	// Check partially_filled events also have MatchedWith
+	for _, event := range partiallyFilledEvents {
+		if event.MatchedWith == nil {
+			t.Errorf("Partially filled order %s: MatchedWith should NOT be nil", event.Order.ID)
+		}
+	}
+}

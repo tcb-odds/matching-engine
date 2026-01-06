@@ -79,9 +79,10 @@ func (e *Engine) Process(ctx context.Context, req *engine3.Order) (*engine3.Outp
 	ordersProcessed, partialOrder := pairBook.Process(order)
 
 	// Notify subscribers about matched orders
-	if len(ordersProcessed) > 0 {
-		incomingOrderID := req.GetID()
+	incomingOrderID := req.GetID()
+	var lastMatchedBookOrder *engine2.Order // Track last book order for partial fill event
 
+	if len(ordersProcessed) > 0 {
 		for i := 0; i < len(ordersProcessed); i++ {
 			processedOrder := ordersProcessed[i]
 
@@ -103,6 +104,9 @@ func (e *Engine) Process(ctx context.Context, req *engine3.Order) (*engine3.Outp
 					event.TradeAmount = processedOrder.FilledAmount.String()
 				}
 			} else {
+				// This is a book order - track it for potential partial fill event
+				lastMatchedBookOrder = processedOrder
+
 				// This is a book order - its counterparty is the incoming order
 				if i+1 < len(ordersProcessed) && ordersProcessed[i+1].ID == incomingOrderID {
 					event.MatchedWith = convertOrderToProto(ordersProcessed[i+1], req.GetPair())
@@ -130,6 +134,22 @@ func (e *Engine) Process(ctx context.Context, req *engine3.Order) (*engine3.Outp
 			Pair:      req.GetPair(),
 			Order:     convertOrderToProto(partialOrder, req.GetPair()),
 		}
+
+		// Set MatchedWith for partial fill event
+		if partialOrder.ID == incomingOrderID {
+			// Incoming order was partially filled - matched with last book order
+			if lastMatchedBookOrder != nil {
+				event.MatchedWith = convertOrderToProto(lastMatchedBookOrder, req.GetPair())
+			}
+		} else {
+			// Book order was partially filled - matched with incoming order
+			event.MatchedWith = &engine3.Order{
+				ID:   incomingOrderID,
+				Type: engine3.Side(engine3.Side_value[order.Type.String()]),
+			}
+		}
+		event.TradeAmount = partialOrder.FilledAmount.String()
+
 		e.subscriptionManager.Broadcast(event)
 	}
 
@@ -242,9 +262,10 @@ func (e *Engine) ProcessMarket(ctx context.Context, req *engine3.Order) (*engine
 	ordersProcessed, partialOrder := pairBook.ProcessMarket(order)
 
 	// Notify subscribers about matched orders (market orders)
-	if len(ordersProcessed) > 0 {
-		incomingOrderID := req.GetID()
+	incomingOrderID := req.GetID()
+	var lastMatchedBookOrder *engine2.Order // Track last book order for partial fill event
 
+	if len(ordersProcessed) > 0 {
 		for i := 0; i < len(ordersProcessed); i++ {
 			processedOrder := ordersProcessed[i]
 
@@ -266,6 +287,9 @@ func (e *Engine) ProcessMarket(ctx context.Context, req *engine3.Order) (*engine
 					event.TradeAmount = processedOrder.FilledAmount.String()
 				}
 			} else {
+				// This is a book order - track it for potential partial fill event
+				lastMatchedBookOrder = processedOrder
+
 				// This is a book order - its counterparty is the incoming order
 				if i+1 < len(ordersProcessed) && ordersProcessed[i+1].ID == incomingOrderID {
 					event.MatchedWith = convertOrderToProto(ordersProcessed[i+1], req.GetPair())
@@ -293,6 +317,22 @@ func (e *Engine) ProcessMarket(ctx context.Context, req *engine3.Order) (*engine
 			Pair:      req.GetPair(),
 			Order:     convertOrderToProto(partialOrder, req.GetPair()),
 		}
+
+		// Set MatchedWith for partial fill event
+		if partialOrder.ID == incomingOrderID {
+			// Incoming order was partially filled - matched with last book order
+			if lastMatchedBookOrder != nil {
+				event.MatchedWith = convertOrderToProto(lastMatchedBookOrder, req.GetPair())
+			}
+		} else {
+			// Book order was partially filled - matched with incoming order
+			event.MatchedWith = &engine3.Order{
+				ID:   incomingOrderID,
+				Type: engine3.Side(engine3.Side_value[order.Type.String()]),
+			}
+		}
+		event.TradeAmount = partialOrder.FilledAmount.String()
+
 		e.subscriptionManager.Broadcast(event)
 	}
 
